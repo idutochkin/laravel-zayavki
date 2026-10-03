@@ -39,7 +39,8 @@ class RunStopFactorChecks implements ShouldQueue
     public array $backoff = [5, 30];
 
     /**
-     * В очередь попадает не вся модель, а только её класс и id (это делает трейт Queueable).
+     * В очередь попадает не вся модель, а только её класс и id
+     * (это делает трейт SerializesModels — он входит в состав Queueable).
      * Перед handle() воркер заново достаёт заявку из БД — то есть работает со свежими данными.
      * Если строки в БД к этому моменту уже нет, job упадёт с ModelNotFoundException
      * (свойство $deleteWhenMissingModels = true заставит его в таком случае молча удалиться).

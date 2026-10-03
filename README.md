@@ -71,6 +71,8 @@ curl -s -X POST localhost:8000/api/loan-applications/1/submit -H "Authorization:
 Если воркер не запущен, отправленная заявка так и останется в статусе `submitted` — это наглядно показывает,
 что проверка идёт вне HTTP-запроса. Чтобы проверки выполнялись сразу, поставь в `.env` `QUEUE_CONNECTION=sync`.
 
+Если менял код, который выполняется в очереди, — перезапусти `queue:work`: воркер держит в памяти старую версию.
+
 Полезные команды: `php artisan route:list`, `php artisan event:list`, `php artisan schedule:list`,
 `php artisan tinker` (консоль, где можно выполнять код приложения: `LoanApplication::count()`).
 
@@ -316,7 +318,7 @@ Schema::create('loan_applications', function (Blueprint $table) {
 });
 ```
 
-Накатить: `php artisan migrate`. Откатить последнюю: `php artisan migrate:rollback`.
+Накатить: `php artisan migrate`. Откатить последнюю накатанную пачку: `php artisan migrate:rollback`.
 
 **Отличие:** в Битриксе это сторонний модуль, и таблицу нередко создают руками. В Laravel миграции встроены,
 и другого способа менять схему не предполагается.
@@ -635,6 +637,10 @@ class RunStopFactorChecks implements ShouldQueue
 Воркер запускается командой `php artisan queue:work`. Где хранится очередь (таблица в БД, Redis),
 задаётся в `.env` — код задачи от этого не зависит.
 
+**Ловушка:** воркер загружает код один раз при старте. Поправил job или сервис — перезапусти `queue:work`,
+иначе он продолжит выполнять старую версию. Для разработки есть `php artisan queue:listen`: медленнее,
+но перечитывает код на каждой задаче.
+
 ### 14. Scheduler — планировщик
 
 **По-человечески:** запуск кода по расписанию: раз в сутки, каждые пять минут.
@@ -836,7 +842,8 @@ DB::transaction(function () use ($application) {
 @endforeach
 ```
 
-`{{ }}` экранирует вывод сам. В этом проекте Blade не используется: бэкенд отдаёт только JSON, а HTML рисует Vue.
+`{{ }}` экранирует вывод сам. В этом проекте Blade почти не используется (только стандартная страница-заглушка
+на `/`): бэкенд отдаёт JSON, а HTML рисует Vue.
 
 ## Чего в Битриксе нет
 
@@ -852,7 +859,7 @@ Queue::fake();                                   // очередь-заглуш�
 Queue::assertPushed(RunStopFactorChecks::class); // проверяем, что задачу положили
 ```
 
-Фасады в проекте: `Route`, `Cache`, `DB`, `Log`, `Gate`, `Schedule`, `Queue`, `Event`.
+Фасады в проекте: `Route`, `Cache`, `DB`, `Log`, `Gate`, `Hash`, `Schedule`, `Queue`, `Event`.
 
 **Route Model Binding — привязка модели к маршруту.** В адресе `/loan-applications/5` лежит число,
 а в метод контроллера приходит уже загруженная заявка. Laravel сам делает `SELECT ... WHERE id = 5`
@@ -907,9 +914,16 @@ LoanApplication::query()->withStatus(ApplicationStatus::Draft)->get();
 из Eloquent возвращает коллекцию.
 
 ```php
-$approved = collect($verdicts)->every(fn ($verdict) => $verdict->passed);   // все ли пройдены
-$codes = $application->stopFactorResults()->where('passed', false)->pluck('code'); // одна колонка
+$approved = collect($verdicts)->every(fn ($verdict) => $verdict->passed); // все ли проверки пройдены
+
+// Связь БЕЗ скобок — уже загруженная коллекция: where и pluck работают в памяти, запросов нет
+$failedCodes = $application->stopFactorResults->where('passed', false)->pluck('code');
+
+// Связь СО скобками — построитель запроса: те же where и pluck уйдут в БД одним SELECT
+$failedCodes = $application->stopFactorResults()->where('passed', false)->pluck('code');
 ```
+
+Разница между `->stopFactorResults` и `->stopFactorResults()` — частый вопрос и частый источник лишних запросов.
 
 **Factory и Seeder — фабрика и сидер.** Фабрика создаёт модель с правдоподобными случайными данными,
 сидер наполняет ими базу. На фабриках держатся тесты.

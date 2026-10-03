@@ -37,6 +37,12 @@ async function onSubmit() {
 function switchMode(next) {
   mode.value = next
   error.value = null
+
+  // Для входа подставляем демо-доступ, для регистрации — пустую форму
+  const demo = next === 'login'
+  form.name = ''
+  form.email = demo ? 'demo@example.com' : ''
+  form.password = demo ? 'password' : ''
 }
 </script>
 
