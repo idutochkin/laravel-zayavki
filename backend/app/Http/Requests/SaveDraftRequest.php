@@ -46,7 +46,11 @@ class SaveDraftRequest extends FormRequest
     }
 
     /**
-     * Свои тексты ошибок. Ключ — «поле.правило».
+     * Свои тексты ошибок. Ключ — «поле.правило» или просто «правило» (тогда для всех полей).
+     * :attribute, :min, :max — подстановки, которые Laravel заполнит сам.
+     *
+     * Здесь тексты заданы точечно. Чтобы перевести ВСЕ стандартные сообщения разом,
+     * делают языковой файл lang/ru/validation.php (php artisan lang:publish) и ставят APP_LOCALE=ru.
      *
      * @return array<string, string>
      */
@@ -54,6 +58,26 @@ class SaveDraftRequest extends FormRequest
     {
         return [
             'inn.regex' => 'ИНН должен состоять из 10 или 12 цифр.',
+            'integer' => 'Поле «:attribute» должно быть целым числом.',
+            'amount.min' => 'Сумма должна быть больше нуля.',
+            'term_months.between' => 'Срок — от :min до :max месяцев.',
+            'max' => 'Поле «:attribute» не должно быть длиннее :max символов.',
+        ];
+    }
+
+    /**
+     * Подписи полей — подставляются в тексты ошибок вместо :attribute.
+     *
+     * @return array<string, string>
+     */
+    public function attributes(): array
+    {
+        return [
+            'company_name' => 'Название компании',
+            'inn' => 'ИНН',
+            'amount' => 'Сумма',
+            'term_months' => 'Срок',
+            'purpose' => 'Цель финансирования',
         ];
     }
 }

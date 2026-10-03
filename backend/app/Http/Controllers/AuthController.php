@@ -34,6 +34,12 @@ class AuthController extends Controller
             // unique:users,email — правило лезет в БД и проверяет, что такого email ещё нет
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', Password::min(8)],
+        ], [
+            // второй аргумент validate() — свои тексты ошибок
+            'required' => 'Заполните это поле.',
+            'email.email' => 'Введите корректный email.',
+            'email.unique' => 'Этот email уже зарегистрирован.',
+            'password.min' => 'Пароль — не короче :min символов.',
         ]);
 
         // Пароль захешируется сам — благодаря 'password' => 'hashed' в User::casts()
@@ -50,6 +56,9 @@ class AuthController extends Controller
         $credentials = $request->validate([
             'email' => ['required', 'email'],
             'password' => ['required', 'string'],
+        ], [
+            'required' => 'Заполните это поле.',
+            'email.email' => 'Введите корректный email.',
         ]);
 
         $user = User::where('email', $credentials['email'])->first();
